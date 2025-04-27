@@ -7,27 +7,29 @@ const generateToken = (id) => {
 
 const registerUser = async (req, res, next) => {
   try {
-    const { name, email, password } = req.body
-
-    if (!name || !email || !password) {
-      res.status(400)
-      throw new Error('Missing fields')
-    }
+    const { name, email, password } = req.body;
 
     const userExists = await User.findOne({ email })
+
     if (userExists) {
       res.status(409)
       throw new Error('Email already taken')
     }
 
-    const user = new User({ name, email, password })
-    res.status(201).json({
-      _id: user._id,
-      name: user.name,
-      email: user.email,
-      token: generateToken(user._id),
-    })
+    const user = await new User({ name, email, password })
+
+    try {
+      await user.save();
+      res.status(201).json({
+        message: "Account created successfully"
+      })
+    } catch(e) {
+      console.error(e);
+      res.status(500);
+      throw new Error("Cannot register user");
+    }
   } catch (error) {
+    console.error(error);
     next(error)
   }
 }
@@ -37,11 +39,9 @@ const loginUser = async (req, res, next) => {
     const { email, password } = req.body
 
     const user = await User.findOne({ email })
+    
     if (user && (await user.matchPassword(password))) {
       res.status(200).json({
-        _id: user._id,
-        name: user.name,
-        email: user.email,
         token: generateToken(user._id),
       })
     } else {
@@ -49,6 +49,7 @@ const loginUser = async (req, res, next) => {
       throw new Error('Wrong email or password')
     }
   } catch (error) {
+    console.error(error);
     next(error)
   }
 }
